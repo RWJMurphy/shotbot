@@ -1,0 +1,5 @@
+/.cache/
+/venv/
+/pipfile.lock
+__pycache__/
+*.pyc

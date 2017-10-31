@@ -1,0 +1,29 @@
+# runtime
+selenium ~= 3.6.0
+praw ~= 5.2.0
+dataset ~= 1.0.3
+ruamel.yaml ~= 0.15.34
+semantic_version ~= 2.6.0
+
+# development
+Sphinx
+sphinx-readable-theme
+
+# testing
+mock
+pytest
+pytest-catchlog
+pytest-cov
+pytest-mock
+pytest-watch
+pytest-xdist
+
+## check dependency version
+piprot
+
+## multilinter
+isort
+pyenchant  # spelling
+pylama
+pylama-pylint
+radon  # code metrics
