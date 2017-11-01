@@ -1,14 +1,37 @@
 import logging
-from mock import patch, MagicMock, Mock
+from tempfile import NamedTemporaryFile
+
+import dataset
+import praw
+from mock import MagicMock, Mock, patch
 from pytest import fixture
 
-import praw
-
 from shotbot import Shotbot
+from shotbot.utils import ensure_schema
+
+
+@fixture
+def temporary_sqlite_uri():
+    with NamedTemporaryFile(suffix='.db') as sqlite_file:
+        yield 'sqlite:///' + sqlite_file.name
+
+
+@fixture
+def db(temporary_sqlite_uri):
+    yield dataset.connect(temporary_sqlite_uri)
+
+
+@fixture
+def submissions_table(db):
+    table = db.create_table('submissions', primary_id='id')
+    ensure_schema(table)
+    yield table
 
 
 @fixture(autouse=True)
 def no_network_access():
+    """Causes any socket creation attempts to fail."""
+
     def _no(*args, **kwargs):
         raise NotImplementedError("No networking D:<")
     with patch('socket.socket', _no):
@@ -17,12 +40,14 @@ def no_network_access():
 
 @fixture
 def mocked_driver():
+    """A mocked Firefox webdriver."""
     with patch('selenium.webdriver.Firefox', autospec=True) as driver:
         yield driver.return_value
 
 
 @fixture
 def mocked_reddit():
+    """A mocked Reddit client."""
     with patch('praw.reddit.Reddit', autospec=True) as reddit:
         with patch('shotbot.bots.watcher.praw.Reddit', reddit):
             with patch('shotbot.bots.commenter.praw.Reddit', reddit):
@@ -35,16 +60,36 @@ def mocked_reddit():
 
 
 @fixture
-def isolated_shotbot(mocked_reddit, mocked_driver):
-    return Shotbot(client_id='client_id',
-                   client_secret='client_secret',
-                   username='username',
-                   password='p4ssw0rd',
-                   db_path='',
-                   owner='owner',
-                   watched_subreddits=['fakesub'])
+def mocked_imgur():
+    """A mocked Imgur client."""
+    with patch('imgurpython.ImgurClient', autospec=True) as imgur:
+        with patch('shotbot.bots.renderer.imgurpython.ImgurClient', imgur):
+            imgur = imgur.return_value
+            yield imgur
+
+
+@fixture
+def isolated_shotbot(mocked_reddit, mocked_driver, mocked_imgur,
+                     temporary_sqlite_uri):
+    """A Shotbot instance with all its dependencies mocked."""
+    reddit_auth = {
+        'client_id': 'reddit_client_id',
+        'client_secret': 'reddit_client_secret',
+        'username': 'username',
+        'password': 'p4ssw0rd',
+    }
+    imgur_auth = {
+        'client_id': 'imgur_client_id',
+        'client_secret': 'imgur_client_secret',
+    }
+    yield Shotbot(reddit_auth=reddit_auth,
+                  imgur_auth=imgur_auth,
+                  db_uri=temporary_sqlite_uri,
+                  owner='owner',
+                  watched_subreddits=['fakesub'])
 
 
 @fixture
 def debug_logging(caplog):
+    """Sets the log level to DEBUG."""
     caplog.set_level(logging.DEBUG)

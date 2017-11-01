@@ -1,10 +1,10 @@
-import copy
+"""Watches a subreddit for submissions."""
 import logging
 
 import dataset
 import praw
 
-from ..utils import base36_decode
+from ..utils import base36_decode, submission_as_dict
 
 __all__ = ('Watcher', )
 
@@ -27,8 +27,7 @@ class Watcher():
         """
         self._reddit = praw.Reddit(**reddit_args)
         self._reddit.read_only = True
-        self._db = dataset.connect(db_uri)
-        self._seen = self._db.create_table('submissions', primary_id='id')
+        self._db_uri = db_uri
         self.subreddit = self._reddit.subreddit(subreddit)
         self._kill = kill_switch
 
@@ -41,31 +40,21 @@ class Watcher():
                 return
 
     def _process_submissions(self):
+        db = dataset.connect(self._db_uri)
+        seen = db.create_table('submissions', primary_id='id')
         for submission in self.subreddit.stream.submissions():
             if self._kill.is_set():
                 return
             log.debug("[%s] %r", submission.id, submission)
-            self._process_submission(submission)
+            self._process_submission(seen, submission)
+            db.commit()
+            log.debug("[%s] inserted", submission.id)
 
-    def _process_submission(self, submission):
-        existing = self._seen.find_one(id=base36_decode(submission.id))
+    @staticmethod
+    def _process_submission(seen, submission):
+        _id = base36_decode(submission.id)
+        existing = seen.find_one(id=_id)
         if existing:
             log.debug("[%s] seen", submission.id)
             return
-        self._seen.insert(_submission_as_dict(submission))
-        self._db.commit()
-        log.debug("[%s] inserted", submission.id)
-
-
-def _submission_as_dict(submission):
-    data = {}
-    for k, v in submission.__dict__.items():
-        if k.startswith('_'):
-            continue
-        if isinstance(v, praw.models.Redditor):
-            v = v.name
-        elif isinstance(v, praw.models.Subreddit):
-            v = v.display_name
-        data[k] = copy.copy(v)
-    data['id'] = base36_decode(data['id'])
-    return data
+        seen.insert(submission_as_dict(submission))

@@ -4,5 +4,5 @@ cd "${BASEDIR}" || exit
 
 set -e
 py.test
-pylama -o tox.ini src test
+pylama -o tox.ini src
 # piprot pipfile

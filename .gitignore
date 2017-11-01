@@ -1,5 +1,7 @@
 /.cache/
+/build/
 /venv/
+/.coverage
 /pipfile.lock
 __pycache__/
 *.pyc

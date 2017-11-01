@@ -6,9 +6,6 @@ from praw.models import Submission
 
 from shotbot.utils import base36_encode
 
-SQLITE_IN_MEM = 'sqlite:///'
-
-
 def _score():
     return random.randint(-10, 100)
 
@@ -33,13 +30,18 @@ def _title():
     return "SUBMISSION TITLE"
 
 
-__submission_id = 0
+def _submission_id_closure():
+    _id = 0
+
+    def _next_id():
+        nonlocal _id
+        _id += 1
+        return base36_encode(_id)
+
+    return _next_id
 
 
-def _submission_id():
-    global __submission_id
-    __submission_id += 1
-    return base36_encode(__submission_id)
+_submission_id = _submission_id_closure()
 
 
 def _selftext():
@@ -84,12 +86,12 @@ def mock_submission():
     }
 
     if selfpost:
+        url = "https://www.reddit.com{permalink}/".format(permalink=permalink)
         data.update({
             'is_self': True,
             "selftext": _selftext(),
             "domain": "self.{}".format(subreddit),
-            "url": "https://www.reddit.com{permalink}/".format(
-                permalink=permalink),
+            "url": url,
         })
 
     else:

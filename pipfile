@@ -1,8 +1,9 @@
 # runtime
-selenium ~= 3.6.0
-praw ~= 5.2.0
 dataset ~= 1.0.3
+imgurpython ~= 1.1.7
+praw ~= 5.2.0
 ruamel.yaml ~= 0.15.34
+selenium ~= 3.6.0
 semantic_version ~= 2.6.0
 
 # development

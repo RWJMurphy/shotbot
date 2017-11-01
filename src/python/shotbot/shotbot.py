@@ -1,52 +1,79 @@
+"""The main entry point for using Shotbot."""
 import logging
 import os
-from threading import Thread, Event
 import time
+from threading import Event, Thread
 
-import dataset
-
+from .bots import Commenter, Renderer, Watcher
 from .version import SHOTBOT_VERSION
-from .bots import Watcher, Commenter, Renderer
 
 USER_AGENT_TMPL = "{platform}:{name}:{version} (by /u/{owner})"
 
+__all__ = ('Shotbot', )
 log = logging.getLogger(__name__)
 
 
-def _determine_platform():
-    return os.name
-
-
 class Shotbot():
+    """
+    A "bot" that takes screenshots of submitted links.
+
+    Actually orchestrates a swarm of `Watcher`, `Renderer` and `Commenter` bots
+    that handle the details of watching subreddits, rednering screenshots and
+    posting comments, respectively.
+    """
+
     def __init__(self,
-                 client_id,
-                 client_secret,
-                 username,
-                 password,
+                 reddit_auth,
+                 imgur_auth,
                  owner,
                  watched_subreddits,
-                 db_path,
+                 db_uri,
                  name=None,
                  version=SHOTBOT_VERSION):
+        """
+        Create a new Shotbot.
+
+        :param reddit_auth:
+        :type reddit_auth: dict[str, str]
+        :param imgur_auth:
+        :type imgur_auth: dict[str, str]
+        :param str owner: bot instance's "owning" reddit user
+        :param watched_subreddits: list of subreddit names to monitor
+        :type watched_subreddits: list[str]
+        :param str db_uri: SQLAlchemy-style URI
+        :param name: bot instance's name; defaults to `"Shotbot"`
+        :type name: str or None
+        :param Version version: bot instance's version; defaults to
+        `SHOTBOT_VERSION`
+        """
         self.name = name or self.__class__.__name__
         self.version = version
-        user_agent = USER_AGENT_TMPL.format(platform=_determine_platform(),
+        user_agent = USER_AGENT_TMPL.format(platform=os.name,
                                             name=self.name,
                                             version=self.version,
                                             owner=owner)
-        self._reddit_args = {
-            'client_id': client_id,
-            'client_secret': client_secret,
-            'username': username,
-            'password': password,
-            'user_agent': user_agent,
-        }
-        self.subreddits = watched_subreddits
-        self._db_uri = 'sqlite:///{}'.format(db_path)
-        self._db = dataset.connect(self._db_uri)
+        self._reddit_args = self._validate_reddit_auth(reddit_auth)
+        self._reddit_args['user_agent'] = user_agent
 
-    def run_forever(self):
-        return self.run(timeout=None)
+        self._imgur_auth = self._validate_imgur_auth(imgur_auth)
+        self.subreddits = watched_subreddits
+
+        self._db_uri = db_uri
+        # self._db = dataset.connect(self._db_uri)
+
+    @staticmethod
+    def _validate_reddit_auth(reddit_auth):
+        for key in ['client_id', 'client_secret', 'username', 'password']:
+            if not reddit_auth.get(key, None):
+                raise ValueError("Missing Reddit auth param {!r}".format(key))
+        return reddit_auth.copy()
+
+    @staticmethod
+    def _validate_imgur_auth(imgur_auth):
+        for key in ['client_id', 'client_secret']:
+            if not imgur_auth.get(key, None):
+                raise ValueError("Missing Imgur auth param {!r}".format(key))
+        return imgur_auth.copy()
 
     def _spawn_swarm(self, kill_switch):
         swarm = []
@@ -63,7 +90,8 @@ class Shotbot():
         shotter_count = os.cpu_count()
         log.debug("spawning %d renderers", shotter_count)
         renderers = [
-            Renderer(self._db_uri, kill_switch) for _ in range(shotter_count)
+            Renderer(self._imgur_auth, self._db_uri, kill_switch)
+            for _ in range(shotter_count)
         ]
         swarm.extend(Thread(name='renderer-{:d}'.format(i),
                             target=bot.run) for i, bot in enumerate(renderers))
@@ -73,7 +101,8 @@ class Shotbot():
         swarm.append(Thread(name='commenter', target=commenter.run))
         return swarm
 
-    def _await_swarm(self, swarm, timeout=None):
+    @staticmethod
+    def _await_swarm(swarm, timeout=None):
         while True:
             for thread in swarm:
                 if not thread.is_alive():
@@ -83,7 +112,13 @@ class Shotbot():
                 break
             time.sleep(1)
 
-    def run(self, timeout=None):
+    def run(self, timeout=None):  # pylint: disable=missing-raises-doc
+        """
+        Watch subreddits for submissions, render screenshots and make comments.
+
+        :param timeout: if set, stops running after this many seconds
+        :type timeout: int or None
+        """
         log.info("%s v%s awakens", self.name, self.version)
         if timeout is not None:
             timeout = time.time() + timeout
@@ -99,7 +134,7 @@ class Shotbot():
         log.debug("monitoring")
         try:
             self._await_swarm(swarm, timeout)
-        except Exception as ex:
+        except Exception:
             log.exception("an exception occured")
             raise
         finally:
@@ -107,3 +142,7 @@ class Shotbot():
             kill_switch.set()
             for thread in swarm:
                 thread.join()
+
+    def run_forever(self):
+        """Run until something exceptional makes us stop."""
+        return self.run(timeout=None)
