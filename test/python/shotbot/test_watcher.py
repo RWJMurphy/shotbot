@@ -1,5 +1,4 @@
 """Validate that :class:`Watcher` behaves correctly."""
-import dataset
 from mock import Mock
 from pytest import fixture
 
@@ -8,6 +7,7 @@ from shotbot.bots import Watcher
 from shotbot.utils import base36_decode
 
 SUBREDDIT = 'fakesub'
+
 
 @fixture
 def isolated_watcher(mocked_reddit, temporary_sqlite_uri):
@@ -30,7 +30,8 @@ def test_process_submissions(isolated_watcher, submissions_table):
         assert submissions_table.find_one(id=base36_decode(submission.id))
 
 
-def test_process_submissions_skips_duplicates(isolated_watcher, submissions_table):
+def test_process_submissions_skips_duplicates(isolated_watcher,
+                                              submissions_table):
     """Watcher inserts submissions into database only once."""
     subreddit = isolated_watcher.subreddit
     submissions = [mock_submission() for _ in range(10)]

@@ -4,7 +4,8 @@ import logging
 import dataset
 import praw
 
-from ..utils import base36_decode, submission_as_dict
+from ..utils import (base36_decode, remove_blacklisted_fields,
+                     submission_as_dict)
 
 __all__ = ('Watcher', )
 
@@ -31,30 +32,43 @@ class Watcher():
         self.subreddit = self._reddit.subreddit(subreddit)
         self._kill = kill_switch
 
+    def __repr__(self):
+        return '<{cls}(/r/{subreddit}, {db_uri})>'.format(
+            cls=self.__class__.__name__,
+            subreddit=self.subreddit.display_name,
+            db_uri=self._db_uri, )
+
     def run(self):
         """Watch submission stream until the kill switch is flipped."""
+        log.debug("%r running", self)
         while True:
             self._process_submissions()
-            self._kill.wait(60)
+            self._kill.wait(1)
             if self._kill.is_set():
                 return
 
     def _process_submissions(self):
         db = dataset.connect(self._db_uri)
-        seen = db.create_table('submissions', primary_id='id')
-        for submission in self.subreddit.stream.submissions():
-            if self._kill.is_set():
-                return
-            log.debug("[%s] %r", submission.id, submission)
-            self._process_submission(seen, submission)
-            db.commit()
-            log.debug("[%s] inserted", submission.id)
+        try:
+            seen = db.create_table('submissions', primary_id='id')
+            for submission in self.subreddit.stream.submissions(pause_after=5):
+                if self._kill.is_set() or submission is None:
+                    return
+                if self._process_submission(seen, submission):
+                    db.commit()
+                    log.info("new submission %d inserted",
+                             base36_decode(submission.id))
+        finally:
+            if hasattr(db.local, 'conn'):
+                db.local.conn.close()
+            db.engine.dispose()
 
     @staticmethod
     def _process_submission(seen, submission):
         _id = base36_decode(submission.id)
         existing = seen.find_one(id=_id)
         if existing:
-            log.debug("[%s] seen", submission.id)
-            return
-        seen.insert(submission_as_dict(submission))
+            log.debug("submission %d seen before", _id)
+            return False
+        seen.insert(remove_blacklisted_fields(submission_as_dict(submission)))
+        return True

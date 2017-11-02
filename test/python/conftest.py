@@ -3,6 +3,7 @@ from tempfile import NamedTemporaryFile
 
 import dataset
 import praw
+import requests
 from mock import MagicMock, Mock, patch
 from pytest import fixture
 
@@ -39,10 +40,32 @@ def no_network_access():
 
 
 @fixture
+def mocked_requests_get():
+    """Mocked requests get call."""
+    with patch('requests.get', autospec=True) as get:
+        with patch('shotbot.bots.renderer.requests.get', get):
+            response = Mock(name='MockResponse', spec=requests.models.Response)
+            raw_response = Mock(name='MockRawResponse')
+            raw_response.read.return_value = b'beefcafe'
+            response.raw = raw_response
+            get.return_value = response
+            yield get
+
+
+@fixture
 def mocked_driver():
     """A mocked Firefox webdriver."""
     with patch('selenium.webdriver.Firefox', autospec=True) as driver:
-        yield driver.return_value
+        with patch('shotbot.bots.renderer.webdriver.Firefox', driver):
+            driver = driver.return_value
+            png_content = b'deadbeef'
+            find_result = driver.find_element_by_xpath.return_value
+            find_result.screenshot_as_png = png_content
+            find_result.size = {
+                'height': 1000,
+                'widht': 1000,
+            }
+            yield driver
 
 
 @fixture
@@ -65,12 +88,16 @@ def mocked_imgur():
     with patch('imgurpython.ImgurClient', autospec=True) as imgur:
         with patch('shotbot.bots.renderer.imgurpython.ImgurClient', imgur):
             imgur = imgur.return_value
+            imgur.upload_from_path.return_value = {
+                'link': 'https://i.imgur.com/404',
+                'deletehash': 'none',
+            }
             yield imgur
 
 
 @fixture
 def isolated_shotbot(mocked_reddit, mocked_driver, mocked_imgur,
-                     temporary_sqlite_uri):
+                     mocked_requests_get, temporary_sqlite_uri):
     """A Shotbot instance with all its dependencies mocked."""
     reddit_auth = {
         'client_id': 'reddit_client_id',

@@ -5,4 +5,8 @@ cd "${BASEDIR}" || exit
 set -e
 py.test
 pylama -o tox.ini src
+pylama \
+    -o tox.ini \
+    --ignore "protected-access,missing-docstring,missing-param-doc,missing-type-doc,redefined-outer-name" \
+    test
 # piprot pipfile

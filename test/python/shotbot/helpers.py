@@ -6,6 +6,7 @@ from praw.models import Submission
 
 from shotbot.utils import base36_encode
 
+
 def _score():
     return random.randint(-10, 100)
 

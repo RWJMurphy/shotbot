@@ -1,0 +1,3 @@
+#!/usr/bin/env python
+import shotbot.cli
+shotbot.cli.main()

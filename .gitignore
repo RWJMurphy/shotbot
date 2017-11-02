@@ -1,5 +1,6 @@
 /.cache/
 /build/
+/src/python/shotbot/ublock.xpi
 /venv/
 /.coverage
 /pipfile.lock

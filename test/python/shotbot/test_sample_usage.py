@@ -1,7 +1,5 @@
-import pytest
-from mock import Mock, MagicMock
-
 import praw
+from mock import MagicMock
 
 from helpers import mock_submission
 
@@ -16,5 +14,3 @@ def test_basic_usage(isolated_shotbot, mocked_reddit, db):
     isolated_shotbot.run(1)
 
     subreddit.stream.submissions.assert_called()
-    # mocked_driver.get.assert_called()
-    # mocked_driver.get_screenshot_as_png.assert_called()

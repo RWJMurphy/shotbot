@@ -67,6 +67,60 @@ def base36_decode(_string):
     return int(_string, base=36)
 
 
+BLACKLISTED_FIELDS = set([
+    'author_flair_css_class',
+    'banned_at_utc',
+    'brand_safe',
+    'can_gild',
+    'clicked',
+    'comment_sort',
+    'contest_mode',
+    'distinguished',
+    'downs',
+    'hide_score',
+    'is_reddit_media_domain',
+    'is_video',
+    'likes',
+    'link_flair_css_class',
+    'locked',
+    'media',
+    'media_embed',
+    'mod_reports',
+    'name',
+    'num_reports',
+    'parent_whitelist_status',
+    'quarantine',
+    'removal_reason',
+    'saved',
+    'secure_media',
+    'secure_media_embed',
+    'spoiler',
+    'subreddit_name_prefixed',
+    'subreddit_type',
+    'suggested_sort',
+    'ups',
+    'user_reports',
+    'visited',
+    'whitelist_status',
+])
+"""Submission fields we don't care to store in the DB."""
+
+
+def remove_blacklisted_fields(submission):
+    """
+    Remove blacklisted fields from submission dict.
+
+    :param submission: submission as a dict, likely from a DB
+    :type submission: dict[str, Any]
+    :returns: submission minus blacklisted fields
+    :rtype: dict[str, Any]
+    """
+    submission = submission.copy()
+    for field in set(submission.keys()) & BLACKLISTED_FIELDS:
+        del submission[field]
+    return submission
+
+
 def submission_as_dict(submission):
     """
     Convert a :class:`Submission` to a flat `dict`.
@@ -104,10 +158,11 @@ def load_submission_for_dict(reddit, submission):
 
 
 SUBMISSIONS_COLUMNS = {
-    'bot_screenshot_at': 0,
-    'bot_screenshot_url': 'http://example.com',
-    'bot_screenshot_deletehash': 'deadbeef',
     'bot_commented_at': 0,
+    'bot_screenshot_at': 0,
+    'bot_screenshot_deletehash': 'deadbeef',
+    'bot_screenshot_lock': 0,
+    'bot_screenshot_url': 'http://example.com',
 }
 
 
