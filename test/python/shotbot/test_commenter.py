@@ -55,10 +55,38 @@ def test_process_submission(isolated_commenter, mocked_reddit, db,
     submission_obj.reply.return_value.created = datetime.datetime.utcnow()
     mocked_reddit.submission.return_value = submission_obj
 
-    isolated_commenter._process_submission(submissions_table,
-                                           copy.copy(submission))
+    comment_body = "this is a fake comment"
+    with patch.object(isolated_commenter, '_generate_comment') as mock_generate:
+        mock_generate.return_value = comment_body
+        isolated_commenter._process_submission(submissions_table,
+                                               copy.copy(submission))
 
+    submission_obj.reply.assert_called_once_with(comment_body)
     updated_submission = submissions_table.find_one(id=submission['id'])
-    assert updated_submission
     assert updated_submission != submission
     assert updated_submission['bot_commented_at']
+
+
+def test_dry_run(isolated_commenter, mocked_reddit, db, submissions_table):
+    isolated_commenter.dry_run = True
+
+    submission = submission_as_dict(mock_submission())
+    submission['bot_screenshot_at'] = datetime.datetime.utcnow()
+    submission['bot_screenshot_url'] = 'https://imgur.com/404'
+    submissions_table.insert(submission)
+    db.commit()
+
+    submission_obj = Mock(spec=praw.models.Submission)
+    submission_obj.id = "abcdef"
+    submission_obj.comments = []
+    submission_obj.permalink = "/r/..."
+
+    mocked_reddit.submission.return_value = submission_obj
+
+    comment_body = "this is a fake comment"
+    with patch.object(isolated_commenter, '_generate_comment') as mock_generate:
+        mock_generate.return_value = comment_body
+        isolated_commenter._process_submission(submissions_table,
+                                               copy.copy(submission))
+
+    submission_obj.reply.assert_not_called()
