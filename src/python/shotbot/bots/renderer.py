@@ -13,6 +13,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
 
+from ..exceptions import RendererException
+
+__all__ = ('REDDIT_HOME', 'MAX_SCREENSHOT_HEIGHT', 'Renderer')
+
 log = logging.getLogger(__name__)
 
 REDDIT_HOME = 'https://www.reddit.com'
@@ -66,7 +70,7 @@ class Renderer():
             log.warning('Wrote screenshot to %s', tmp_fh.name)
             # for log_type in driver.log_types():
             #     log.warning("%s log:\n%s", log_type, driver.get_log(log_type))
-            raise Exception("Failed to login to reddit")
+            raise RendererException("Failed to login to reddit")
 
     @staticmethod
     def _accept_cookies(driver):
@@ -185,6 +189,7 @@ class Renderer():
                 $('{selector}')[0].style.maxHeight = '{height}px';
                 $('{selector}')[0].style.overflow = 'hidden';
                 """
+
                 for selector in ['.commentarea', '.side']:
                     script += cap_element_js.format(selector=selector,
                                                     height=max_height)

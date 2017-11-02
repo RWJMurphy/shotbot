@@ -10,6 +10,8 @@ from pytest import fixture
 from shotbot import Shotbot
 from shotbot.utils import ensure_schema
 
+SCREENSHOT_PNG_CONTENT = b'deadbeef'
+
 
 @fixture
 def temporary_sqlite_uri():
@@ -58,13 +60,10 @@ def mocked_driver():
     with patch('selenium.webdriver.Firefox', autospec=True) as driver:
         with patch('shotbot.bots.renderer.webdriver.Firefox', driver):
             driver = driver.return_value
-            png_content = b'deadbeef'
+            driver.get_screenshot_as_png.return_value = SCREENSHOT_PNG_CONTENT
             find_result = driver.find_element_by_xpath.return_value
-            find_result.screenshot_as_png = png_content
-            find_result.size = {
-                'height': 1000,
-                'widht': 1000,
-            }
+            find_result.screenshot_as_png = SCREENSHOT_PNG_CONTENT
+            find_result.size = {'height': 1000, 'widht': 1000}
             yield driver
 
 

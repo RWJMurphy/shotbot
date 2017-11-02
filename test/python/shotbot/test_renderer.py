@@ -4,23 +4,26 @@ import os
 from tempfile import NamedTemporaryFile
 
 from mock import Mock, patch
-from pytest import fixture
+from pytest import fixture, raises
 
-from helpers import mock_submission
+from helpers import SCREENSHOT_PNG_CONTENT, mock_submission
 from shotbot.bots import Renderer
+from shotbot.exceptions import RendererException
 from shotbot.utils import submission_as_dict
 
 SUBREDDIT = 'fakesub'
 
 
 @fixture
-def isolated_renderer(mocked_driver, mocked_imgur, temporary_sqlite_uri):
+def isolated_renderer(mocked_driver, mocked_imgur, mocked_requests_get,
+                      temporary_sqlite_uri):
     """Return a Renderer with mocked dependencies."""
     kill_switch = Mock()
     kill_switch.is_set.return_value = False
-    renderer = Renderer(
-        {'client_id': '',
-         'client_secret': ''}, {}, temporary_sqlite_uri, kill_switch)
+    imgur_auth = {'client_id': '', 'client_secret': ''}
+    reddit_args = {'username': 'USERNAME', 'password': 'PASSWORD'}
+    renderer = Renderer(imgur_auth, reddit_args, temporary_sqlite_uri,
+                        kill_switch)
     renderer.driver = mocked_driver
     try:
         yield renderer
@@ -32,11 +35,10 @@ def isolated_renderer(mocked_driver, mocked_imgur, temporary_sqlite_uri):
 def test_render_url(isolated_renderer, mocked_driver):
     """:func:`render` behaves as expected."""
     some_url = "http://example.com"
-    png_content = b'deadbeef'
     temp_file = isolated_renderer.render(some_url)
     assert os.path.exists(temp_file)
     with open(temp_file, 'rb') as temp_fh:
-        assert temp_fh.read() == png_content
+        assert temp_fh.read() == SCREENSHOT_PNG_CONTENT
 
     mocked_driver.get.assert_called_once_with(some_url)
 
@@ -91,3 +93,17 @@ def test_capture(isolated_renderer, mocked_driver):
                 assert os.path.exists(temp_file.name)
                 isolated_renderer.capture(some_url)
                 assert not os.path.exists(temp_file.name)
+
+
+@patch('shotbot.bots.renderer.NamedTemporaryFile', autospec=True)
+@patch('shotbot.bots.renderer.WebDriverWait', autospec=True)
+def test_driver_quits_on_create_exception(mocked_wait, mocked_file,
+                                          isolated_renderer, mocked_driver):
+    mocked_wait.return_value.until.side_effect = TimeoutError
+    with raises(RendererException):
+        isolated_renderer._create_driver()
+
+    mocked_driver.quit.assert_called_once()
+    mocked_file_in_with = mocked_file.return_value.__enter__.return_value
+    mocked_file_in_with.write.assert_called_once_with(
+        SCREENSHOT_PNG_CONTENT)

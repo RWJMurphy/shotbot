@@ -36,7 +36,7 @@ class Watcher():
         return '<{cls}(/r/{subreddit}, {db_uri})>'.format(
             cls=self.__class__.__name__,
             subreddit=self.subreddit.display_name,
-            db_uri=self._db_uri, )
+            db_uri=self._db_uri)
 
     def run(self):
         """Watch submission stream until the kill switch is flipped."""

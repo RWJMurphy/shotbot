@@ -6,6 +6,8 @@ from praw.models import Submission
 
 from shotbot.utils import base36_encode
 
+SCREENSHOT_PNG_CONTENT = b'deadbeef'
+
 
 def _score():
     return random.randint(-10, 100)
@@ -73,7 +75,7 @@ def mock_submission():
     permalink = '/r/{subreddit}/comments/{id}/{slug}'.format(
         subreddit=subreddit,
         id=submission_id,
-        slug=title.lower(), )
+        slug=title.lower())
 
     data = {
         "author": _author(),
