@@ -6,6 +6,11 @@ class ShotbotException(Exception):
     pass
 
 
+class CommenterException(ShotbotException):
+    """Base exception for Renderer exceptions."""
+    pass
+
+
 class RendererException(ShotbotException):
     """Base exception for Renderer exceptions."""
     pass

@@ -1,7 +1,7 @@
 """Renders screenshots."""
+import datetime
 import logging
 import os
-import time
 from tempfile import NamedTemporaryFile
 
 import dataset
@@ -130,7 +130,7 @@ class Renderer():
             if self._kill.is_set():
                 break
 
-    LOCK_TIME = 300
+    LOCK_TIME = datetime.timedelta(minutes=5)
 
     def _process_next_submission(self):
         db = dataset.connect(self._db_uri)
@@ -139,20 +139,22 @@ class Renderer():
             log.debug("checking for next submission that needs screenshot")
             for submission in submissions_table.find(bot_screenshot_at=None,
                                                      order_by='created'):
+                now = datetime.datetime.utcnow()
                 is_locked = (submission['bot_screenshot_lock'] and
-                             time.time() < submission['bot_screenshot_lock'])
+                             now < submission['bot_screenshot_lock'])
                 if is_locked:
                     log.debug("submission %d locked, continuing",
                               submission['id'])
                     continue
-                submission['bot_screenshot_lock'] = time.time(
-                ) + self.LOCK_TIME
+                submission['bot_screenshot_lock'] = now + self.LOCK_TIME
                 submissions_table.update(submission, ['id'])
                 db.commit()
-                log.debug("submission %d lock acquired", submission['id'])
+                log.debug("submission %d screenshot lock acquired",
+                          submission['id'])
                 self._process_submission(submissions_table, submission)
                 db.commit()
-                log.info("submission %d screenshot", submission['id'])
+                log.info("submission %d screenshot generated",
+                         submission['id'])
                 return
         finally:
             if hasattr(db.local, 'conn'):
@@ -164,7 +166,7 @@ class Renderer():
         url, deletehash = self.capture(submission['url'])
         submission['bot_screenshot_url'] = url
         submission['bot_screenshot_deletehash'] = deletehash
-        submission['bot_screenshot_at'] = time.time()
+        submission['bot_screenshot_at'] = datetime.datetime.utcnow()
         submissions_table.update(submission, ['id'])
 
     def render(self, url, max_height=MAX_SCREENSHOT_HEIGHT):
@@ -184,18 +186,14 @@ class Renderer():
             if max_height and page.size['height'] > max_height:
                 log.debug("page height %d greater than %d; trimming",
                           page.size['height'], max_height)
-                script = []
                 cap_element_js = """
                 $('{selector}')[0].style.maxHeight = '{height}px';
                 $('{selector}')[0].style.overflow = 'hidden';
                 """
 
-                for selector in ['.commentarea', '.side']:
-                    script += cap_element_js.format(selector=selector,
-                                                    height=max_height)
-                script += "$('.footer-parent').hide();"
-                script += "$('.debuginfo').hide();"
-                self.driver.execute_script(''.join(script))
+                script = cap_element_js.format(selector='body',
+                                               height=max_height)
+                self.driver.execute_script(script)
                 log.debug("new page height %d", page.size['height'])
 
             screenshot = page.screenshot_as_png

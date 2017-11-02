@@ -2,7 +2,7 @@
 click ~= 6.0
 dataset ~= 1.0.3
 imgurpython ~= 1.1.7
-jinja2
+Jinja2 ~= 2.9.6
 praw ~= 5.2.0
 requests
 ruamel.yaml ~= 0.15.34

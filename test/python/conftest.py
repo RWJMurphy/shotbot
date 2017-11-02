@@ -112,7 +112,7 @@ def isolated_shotbot(mocked_reddit, mocked_driver, mocked_imgur,
                   imgur_auth=imgur_auth,
                   db_uri=temporary_sqlite_uri,
                   owner='owner',
-                  watched_subreddits=['fakesub'])
+                  watched_subreddits={'fakesub': {}})
 
 
 @fixture

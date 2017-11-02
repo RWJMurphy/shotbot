@@ -7,7 +7,7 @@ from threading import Event, Thread
 
 import dataset
 
-from .bots import Commenter, Renderer, Watcher
+from .bots import QuoteCommenter, Renderer, Watcher
 from .utils import ensure_schema
 from .version import SHOTBOT_VERSION
 
@@ -21,9 +21,9 @@ class Shotbot():
     """
     A "bot" that takes screenshots of submitted links.
 
-    Actually orchestrates a swarm of `Watcher`, `Renderer` and `Commenter` bots
-    that handle the details of watching subreddits, rednering screenshots and
-    posting comments, respectively.
+    Actually orchestrates a swarm of `Watcher`, `Renderer` and `QuoteCommenter`
+    bots that handle the details of watching subreddits, rednering screenshots
+    and posting comments, respectively.
     """
 
     def __init__(self,
@@ -84,29 +84,36 @@ class Shotbot():
         # create a watcher per subreddit
         if log.isEnabledFor(logging.DEBUG):
             log.debug("spawning observers for %s", ', '.join(self.subreddits))
-        watchers = [
-            Watcher(self._reddit_args, self._db_uri, subreddit, kill_switch)
-            for subreddit in self.subreddits
-        ]
+
+        watchers = []
+        domains = None
+        for subreddit, options in self.subreddits.items():
+            if 'domains' in options:
+                domains = set(options['domains'])
+
+                def _filter_fn(submission):
+                    return submission.domain in domains
+            else:
+                _filter_fn = None
+            watcher = Watcher(self._reddit_args, self._db_uri, subreddit,
+                              kill_switch, _filter_fn)
+            watchers.append(watcher)
         swarm.extend(Thread(name='watch-{}'.format(bot.subreddit),
                             target=bot.run) for bot in watchers)
         # create screenshot worker
         renderer_count = max(os.cpu_count() - 1, 1)
         log.debug("spawning %d renderers", renderer_count)
         renderers = [
-            Renderer(
-                self._imgur_auth,
-                self._reddit_args,
-                self._db_uri,
-                kill_switch,
-            )
-            for _ in range(renderer_count)
+            Renderer(self._imgur_auth,
+                     self._reddit_args,
+                     self._db_uri,
+                     kill_switch, ) for _ in range(renderer_count)
         ]
         swarm.extend(Thread(name='renderer-{}'.format(i),
                             target=bot.run) for i, bot in enumerate(renderers))
         # create a commenter
         log.debug("spawning commenter")
-        commenter = Commenter(self._reddit_args, self._db_uri, kill_switch)
+        commenter = QuoteCommenter(self._reddit_args, self._db_uri, kill_switch)
         swarm.append(Thread(name='commenter', target=commenter.run))
         return swarm
 

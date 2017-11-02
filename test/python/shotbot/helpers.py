@@ -1,6 +1,6 @@
 """Useful code shared between tests."""
+import datetime
 import random
-import time
 
 from praw.models import Submission
 
@@ -18,7 +18,8 @@ def _author():
 
 
 def _created():
-    return time.time() - random.randrange(3600)
+    return datetime.datetime.utcnow() + datetime.timedelta(
+        minutes=random.randint(-30, 30))
 
 
 def _url():

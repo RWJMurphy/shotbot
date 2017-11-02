@@ -1,0 +1,7 @@
+**{{submission.title}}**
+
+On {{comment.created_utc|parse_utc_epoch}}, {{comment.author|markdown_escape}} wrote [{{comment.score}} points, {% if comment.gilded %}gilded x{{comment.gilded}}{% endif %}]:
+
+{{comment.body|markdown_quote}}
+
+[Screenshot]({{screenshot}})

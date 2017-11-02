@@ -1,6 +1,9 @@
 """Useful functions that don't have a better home."""
 import copy
+import datetime
+import itertools
 import logging
+import re
 import string
 
 import praw
@@ -158,10 +161,10 @@ def load_submission_for_dict(reddit, submission):
 
 
 SUBMISSIONS_COLUMNS = {
-    'bot_commented_at': 0,
-    'bot_screenshot_at': 0,
+    'bot_commented_at': datetime.datetime.now(),
+    'bot_screenshot_at': datetime.datetime.now(),
     'bot_screenshot_deletehash': 'deadbeef',
-    'bot_screenshot_lock': 0,
+    'bot_screenshot_lock': datetime.datetime.now(),
     'bot_screenshot_url': 'http://example.com',
 }
 
@@ -177,3 +180,35 @@ def ensure_schema(submissions_table):
     log.debug("Adding screenshot columns to table")
     for column, example in SUBMISSIONS_COLUMNS.items():
         submissions_table.create_column_by_example(column, example)
+
+
+def markdown_quote(text, quote='> '):
+    """
+    Blockquote a chunk of text.
+
+    :param str text:
+    :param str quote:
+    :returns: text with markdown quotes
+    :rtype: str
+    """
+    return ''.join(
+        item
+        for pair in zip(
+            itertools.cycle([quote]),
+            text.splitlines(True))
+        for item in pair
+    )
+
+
+MARKDOWN_ESCAPE_CHARS = re.compile(r'([\\`*_{}\[\]()#+.!-])')
+
+
+def markdown_escape(text):
+    """
+    Escape Markdown characters in text.
+
+    :param str text:
+    :returns: text with Markdown escaped
+    :rtype: str
+    """
+    return MARKDOWN_ESCAPE_CHARS.sub(r'\\\1', str(text))
