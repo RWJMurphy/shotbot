@@ -32,6 +32,7 @@ class Shotbot():
                  owner,
                  watched_subreddits,
                  db_uri,
+                 dry_run=False,
                  name=None,
                  version=SHOTBOT_VERSION):
         """
@@ -44,6 +45,7 @@ class Shotbot():
         :param str owner: bot instance's "owning" reddit user
         :param watched_subreddits: list of subreddit names to monitor
         :type watched_subreddits: list[str]
+        :param bool dry_run: if True, won't post replies
         :param str db_uri: SQLAlchemy-style URI
         :param name: bot instance's name; defaults to `"Shotbot"`
         :type name: str or None
@@ -62,6 +64,7 @@ class Shotbot():
         self._imgur_auth = self._validate_imgur_auth(imgur_auth)
         self.subreddits = watched_subreddits
 
+        self.dry_run = dry_run
         self._db_uri = db_uri
         # self._db = dataset.connect(self._db_uri)
 
@@ -113,7 +116,8 @@ class Shotbot():
                             target=bot.run) for i, bot in enumerate(renderers))
         # create a commenter
         log.debug("spawning commenter")
-        commenter = QuoteCommenter(self._reddit_args, self._db_uri, kill_switch)
+        commenter = QuoteCommenter(
+            self._reddit_args, self._db_uri, kill_switch, self.dry_run)
         swarm.append(Thread(name='commenter', target=commenter.run))
         return swarm
 
@@ -144,6 +148,8 @@ class Shotbot():
         :type timeout: int or None
         """
         log.info("%s v%s awakens", self.name, self.version)
+        if self.dry_run:
+            log.info("dry run, no comments will be posted")
         if timeout is not None:
             timeout = time.time() + timeout
         kill_switch = Event()

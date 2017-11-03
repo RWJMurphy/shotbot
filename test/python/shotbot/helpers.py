@@ -2,6 +2,7 @@
 import datetime
 import random
 
+from mock import MagicMock
 from praw.models import Submission
 
 from shotbot.utils import base36_encode
@@ -23,7 +24,12 @@ def _created():
 
 
 def _url():
-    return "example.com", "https://example.com/"
+    return random.choice([
+        ("example.com", "https://example.com/"),
+        ("reddit.com", "https://www.reddit.com/r/subreddit/post_id/post-slug-slugs-ewww/comment_id?foo=bar"),  # noqa
+        ("reddit.com", "https://www.reddit.com/r/subreddit/post_id/"),
+        ("reddit.com", "https://reddit.com/"),
+    ])
 
 
 def _subreddit():
@@ -60,7 +66,7 @@ THIS IS AN EXAMPLE SELF POST WHIHC IS WHY IM YELLING AT you
 oh no!"""
 
 
-def mock_submission():
+def mock_submission(reddit=None):
     """
     Create a fake :class:`Submission`.
 
@@ -107,4 +113,8 @@ def mock_submission():
             "domain": domain,
         })
 
-    return Submission(None, _data=data)
+    submission = MagicMock(spec=Submission)
+    for key, value in data.items():
+        setattr(submission, key, value)
+    submission.comments = []
+    return submission

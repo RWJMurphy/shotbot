@@ -9,7 +9,7 @@ from pytest import fixture, raises
 from helpers import SCREENSHOT_PNG_CONTENT, mock_submission
 from shotbot.bots import Renderer
 from shotbot.exceptions import RendererException
-from shotbot.utils import submission_as_dict
+from shotbot.utils import remove_blacklisted_fields, submission_as_dict
 
 SUBREDDIT = 'fakesub'
 
@@ -46,7 +46,8 @@ def test_render_url(isolated_renderer, mocked_driver):
 def test_process_next_submission(isolated_renderer, db, submissions_table):
     """:func:`_process_submissions` behaves as expected."""
     mock_submissions = [
-        submission_as_dict(mock_submission()) for _ in range(100)
+        remove_blacklisted_fields(submission_as_dict(mock_submission()))
+        for _ in range(100)
     ]
     submissions_table.insert_many(mock_submissions)
     db.commit()
@@ -60,7 +61,8 @@ def test_process_next_submission(isolated_renderer, db, submissions_table):
 def test_process_submission(isolated_renderer, mocked_driver, mocked_imgur, db,
                             submissions_table):
     """:func:`_process_submission` behaves as expected."""
-    submission = submission_as_dict(mock_submission())
+    submission = remove_blacklisted_fields(
+        submission_as_dict(mock_submission()))
     submissions_table.insert(submission)
     db.commit()
 
@@ -105,5 +107,4 @@ def test_driver_quits_on_create_exception(mocked_wait, mocked_file,
 
     mocked_driver.quit.assert_called_once()
     mocked_file_in_with = mocked_file.return_value.__enter__.return_value
-    mocked_file_in_with.write.assert_called_once_with(
-        SCREENSHOT_PNG_CONTENT)
+    mocked_file_in_with.write.assert_called_once_with(SCREENSHOT_PNG_CONTENT)

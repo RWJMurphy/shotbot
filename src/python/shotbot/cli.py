@@ -22,12 +22,14 @@ DEFAULT_CONFIG = {
         'client_secret': 'REDDIT_CLIENT_SECRET',
     },
     'owner': 'YOUR_USERNAME',
-    'watched_subreddits': [
-        'subreddit',
-        'truesubreddit',
-        'subredditsucks',
-        'shitsubredditsays',
-    ],
+    'watched_subreddits': {
+        'subreddit': {},
+        'truesubreddit': {},
+        'subredditsucks': {},
+        'shitsubredditsays': {
+            'domains': ['reddit.com'],
+        },
+    },
     'db_uri': 'sqlite:///shotbot.db',
 }
 
@@ -40,6 +42,7 @@ def _populate_config(config_file):
 @click.command()
 @click.help_option('--help', '-h')
 @click.version_option(str(SHOTBOT_VERSION))
+@click.option('--dry-run', '-n', is_flag=True, help="don't post replies")
 @click.option('--config-file',
               '-c',
               type=str,
@@ -47,9 +50,9 @@ def _populate_config(config_file):
               help='shotbot config file',
               metavar='shotbot.yaml')
 @click.option('--verbose', '-v', is_flag=True, help='enable verbose logging')
-def main(config_file, verbose):  # pylint:disable=W9015,W9016
+def main(config_file, dry_run, verbose):  # pylint:disable=W9015,W9016
     """Reddit bot that posts screenshots of submissions."""
-    log_format = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
+    log_format = "%(asctime)s %(levelname)-5s %(name)s: %(message)s"
     debug_log_format = (
         "%(asctime)s %(levelname)s [%(thread)d %(threadName)s] [%(name)s] "
         "%(message)s (%(filename)s:%(lineno)s:%(funcName)s)")
@@ -72,7 +75,7 @@ def main(config_file, verbose):  # pylint:disable=W9015,W9016
 
     with open(config_file, mode='r', encoding='utf8') as config_fh:
         config = yaml.safe_load(config_fh)
-    shotbot = Shotbot(**config)
+    shotbot = Shotbot(dry_run=dry_run, **config)
     shotbot.run_forever()
 
 

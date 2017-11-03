@@ -71,6 +71,12 @@ def base36_decode(_string):
 
 
 BLACKLISTED_FIELDS = set([
+    # Complex values
+    'media',
+    'media_embed',
+    'secure_media',
+    'secure_media_embed',
+    # Don't care
     'author_flair_css_class',
     'banned_at_utc',
     'brand_safe',
@@ -79,15 +85,11 @@ BLACKLISTED_FIELDS = set([
     'comment_sort',
     'contest_mode',
     'distinguished',
-    'downs',
     'hide_score',
     'is_reddit_media_domain',
     'is_video',
-    'likes',
     'link_flair_css_class',
     'locked',
-    'media',
-    'media_embed',
     'mod_reports',
     'name',
     'num_reports',
@@ -95,16 +97,20 @@ BLACKLISTED_FIELDS = set([
     'quarantine',
     'removal_reason',
     'saved',
-    'secure_media',
-    'secure_media_embed',
     'spoiler',
     'subreddit_name_prefixed',
     'subreddit_type',
     'suggested_sort',
-    'ups',
     'user_reports',
     'visited',
     'whitelist_status',
+    # Legacy
+    'downs',
+    'likes',
+    'ups',
+    # Used in testing
+    'comments',  # fake attr set for testing
+    'method_calls',  # or the DB gets sad about MockSubmission
 ])
 """Submission fields we don't care to store in the DB."""
 

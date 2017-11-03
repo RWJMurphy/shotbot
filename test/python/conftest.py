@@ -1,4 +1,3 @@
-import logging
 from tempfile import NamedTemporaryFile
 
 import dataset
@@ -28,17 +27,15 @@ def db(temporary_sqlite_uri):
 def submissions_table(db):
     table = db.create_table('submissions', primary_id='id')
     ensure_schema(table)
+    db.commit()
     yield table
 
 
 @fixture(autouse=True)
-def no_network_access():
+@patch('socket.socket')
+def no_network_access(socket):
     """Causes any socket creation attempts to fail."""
-
-    def _no(*args, **kwargs):
-        raise NotImplementedError("No networking D:<")
-    with patch('socket.socket', _no):
-        yield
+    socket.side_effect = NotImplementedError("No networking D:<")
 
 
 @fixture
@@ -74,10 +71,18 @@ def mocked_reddit():
         with patch('shotbot.bots.watcher.praw.Reddit', reddit):
             with patch('shotbot.bots.commenter.praw.Reddit', reddit):
                 reddit = reddit.return_value
-                reddit.subreddit = subreddit_fn = Mock()
-                subreddit_fn.return_value = subreddit = MagicMock(
-                    spec=praw.models.Subreddit)
+
+                subreddit = MagicMock(name='MockSubreddit()',
+                                      spec=praw.models.Subreddit)
                 subreddit.__str__.return_value = "fakesub"
+                subreddit.display_name = "fakesub"
+
+                reddit.subreddit = Mock()
+                reddit.subreddit.return_value = subreddit
+
+                reddit.config = Mock(name='MockReddit().config')
+                reddit.config.username = "username"
+
                 yield reddit
 
 
@@ -96,7 +101,8 @@ def mocked_imgur():
 
 @fixture
 def isolated_shotbot(mocked_reddit, mocked_driver, mocked_imgur,
-                     mocked_requests_get, temporary_sqlite_uri):
+                     mocked_requests_get, temporary_sqlite_uri,
+                     submissions_table):
     """A Shotbot instance with all its dependencies mocked."""
     reddit_auth = {
         'client_id': 'reddit_client_id',
@@ -113,9 +119,3 @@ def isolated_shotbot(mocked_reddit, mocked_driver, mocked_imgur,
                   db_uri=temporary_sqlite_uri,
                   owner='owner',
                   watched_subreddits={'fakesub': {}})
-
-
-@fixture
-def debug_logging(caplog):
-    """Sets the log level to DEBUG."""
-    caplog.set_level(logging.DEBUG)
