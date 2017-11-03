@@ -145,6 +145,7 @@ class QuoteCommenter(Commenter):
         r'http(s)?://([^.]+\.)?reddit\.com/r/[^/]+/comments/[0-9a-z]+/[^/]+/(?P<id>[0-9a-z]+)(/(\?.*)?)?')  # noqa
 
     REMOVED_COMMENT = '[removed]'
+    DELETED_COMMENT = '[deleted]'
 
     @classmethod
     def _is_comment_url(cls, url):
@@ -172,7 +173,7 @@ class QuoteCommenter(Commenter):
                 submission.domain)
             return super()._generate_comment(submission, screenshot)
         comment = self._get_linked_comment(submission)
-        if comment.body == self.REMOVED_COMMENT:
+        if comment.body in (self.REMOVED_COMMENT, self.DELETED_COMMENT):
             raise CommenterException("comment {} deleted".format(comment))
 
         template = self._jinja.get_template('quote_comment.md.j2')
