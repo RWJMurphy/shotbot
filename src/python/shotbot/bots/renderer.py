@@ -13,6 +13,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as expect
 from selenium.webdriver.support.ui import WebDriverWait
+from sqlalchemy.sql import or_
 
 from ..exceptions import RendererException
 
@@ -140,15 +141,13 @@ class Renderer():
         try:
             submissions_table = db['submissions']
             log.debug("checking for next submission that needs screenshot")
-            for submission in submissions_table.find(bot_screenshot_at=None,
-                                                     order_by='created'):
-                now = datetime.datetime.utcnow()
-                is_locked = (submission['bot_screenshot_lock'] and
-                             now < submission['bot_screenshot_lock'])
-                if is_locked:
-                    log.debug("submission %d locked, continuing",
-                              submission['id'])
-                    continue
+            col = submissions_table.table.columns
+            now = datetime.datetime.utcnow()
+            for submission in submissions_table.find(
+                    or_(col.bot_screenshot_lock == None,  # noqa
+                        col.bot_screenshot_lock < now),
+                    bot_screenshot_at=None,
+                    order_by='created'):
                 submission['bot_screenshot_lock'] = now + self.LOCK_TIME
                 submissions_table.update(submission, ['id'])
                 db.commit()
