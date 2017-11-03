@@ -1,0 +1,21 @@
+db_uri: sqlite:///shotbot.db
+imgur_auth:
+  client_id: imgur_client_ID
+  client_secret: imgur_client_secret
+owner: your_reddit_username
+reddit_auth:
+  client_id: reddit_client_ID
+  client_secret: reddit_client_secret
+  username: reddit_username
+  password: reddit_password
+watched_subreddits:
+  subreddit: {}
+  ShitSubredditSays:
+    domains:
+    - reddit.com  # cross-links only
+    newer_than:
+      days: 1  # only new things; use timedelta args
+  TrueSubreddit:
+    domains:
+    - self.TrueSubreddit  # Self-posts only
+  SubredditSucks: {}

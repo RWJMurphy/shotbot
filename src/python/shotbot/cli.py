@@ -7,36 +7,9 @@ from ruamel import yaml
 
 from .shotbot import SHOTBOT_VERSION, Shotbot
 
-__all__ = ('DEFAULT_CONFIG', 'DEFAULT_CONFIG_PATH', 'main')
+__all__ = ('DEFAULT_CONFIG_PATH', 'main')
 
 DEFAULT_CONFIG_PATH = 'shotbot.yaml'
-DEFAULT_CONFIG = {
-    'reddit_auth': {
-        'client_id': 'REDDIT_CLIENT_ID',
-        'client_secret': 'REDDIT_CLIENT_SECRET',
-        'username': 'REDDIT_USERNAME',
-        'password': 'REDDIT_PASSWORD',
-    },
-    'imgur_auth': {
-        'client_id': 'REDDIT_CLIENT_ID',
-        'client_secret': 'REDDIT_CLIENT_SECRET',
-    },
-    'owner': 'YOUR_USERNAME',
-    'watched_subreddits': {
-        'subreddit': {},
-        'truesubreddit': {},
-        'subredditsucks': {},
-        'shitsubredditsays': {
-            'domains': ['reddit.com'],
-        },
-    },
-    'db_uri': 'sqlite:///shotbot.db',
-}
-
-
-def _populate_config(config_file):
-    with open(config_file, 'w') as config_fh:
-        yaml.dump(DEFAULT_CONFIG, config_fh, default_flow_style=False)
 
 
 @click.command()
@@ -67,11 +40,10 @@ def main(config_file, dry_run, verbose):  # pylint:disable=W9015,W9016
     if not config_file:
         config_file = DEFAULT_CONFIG_PATH
     if not os.path.exists(config_file):
-        _populate_config(config_file)
         raise click.exceptions.BadParameter(
-            "Config file {config_file!r} did not exist. "
-            "An example config has been written to {config_file!r}, "
-            "please fill it in then rerun.".format(config_file=config_file))
+            "Config file {config_file!r} does not exist. "
+            "See shotbot-dist.yaml for an example config.".format(
+                config_file=config_file))
 
     with open(config_file, mode='r', encoding='utf8') as config_fh:
         config = yaml.safe_load(config_fh)
