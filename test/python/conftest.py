@@ -1,3 +1,4 @@
+import os
 from tempfile import NamedTemporaryFile
 
 import dataset
@@ -7,6 +8,7 @@ from mock import MagicMock, Mock, patch
 from pytest import fixture
 
 from shotbot import Shotbot
+from shotbot.bots import Renderer
 from shotbot.utils import ensure_schema
 
 SCREENSHOT_PNG_CONTENT = b'deadbeef'
@@ -114,8 +116,12 @@ def isolated_shotbot(mocked_reddit, mocked_driver, mocked_imgur,
         'client_id': 'imgur_client_id',
         'client_secret': 'imgur_client_secret',
     }
-    yield Shotbot(reddit_auth=reddit_auth,
-                  imgur_auth=imgur_auth,
-                  db_uri=temporary_sqlite_uri,
-                  owner='owner',
-                  watched_subreddits={'fakesub': {}})
+    try:
+        yield Shotbot(reddit_auth=reddit_auth,
+                      imgur_auth=imgur_auth,
+                      db_uri=temporary_sqlite_uri,
+                      owner='owner',
+                      watched_subreddits={'fakesub': {}})
+    finally:
+        if os.path.exists(Renderer.UBLOCK_XPI_PATH):
+            os.remove(Renderer.UBLOCK_XPI_PATH)
