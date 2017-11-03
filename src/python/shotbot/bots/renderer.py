@@ -4,6 +4,7 @@ import logging
 import os
 from tempfile import NamedTemporaryFile
 from threading import Lock
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import dataset
 import imgurpython
@@ -16,6 +17,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from sqlalchemy.sql import or_
 
 from ..exceptions import RendererException
+from ..utils import is_comment_url
 
 __all__ = ('REDDIT_HOME', 'MAX_SCREENSHOT_HEIGHT', 'Renderer')
 
@@ -130,7 +132,7 @@ class Renderer():
         self._create_driver()
         while True:
             self._process_next_submission()
-            self._kill.wait(1)
+            self._kill.wait(60)
             if self._kill.is_set():
                 break
 
@@ -238,3 +240,32 @@ class Renderer():
         response = self._imgur.upload_from_path(file_path)
         log.debug("upload respons: %r", response)
         return response['link'], response['deletehash']
+
+
+class CommentContextRenderer(Renderer):
+    """Rewrites Reddit comment URLs with extra context before screenshotting."""
+
+    @staticmethod
+    def _set_comment_context(url, context=9):
+        url = urlsplit(url)
+        query = parse_qs(url.query)
+        query['context'] = context
+        url = list(url)
+        url[3] = urlencode(query)
+        return urlunsplit(url)
+
+    def render(self, url, max_height=MAX_SCREENSHOT_HEIGHT):
+        """
+        Render a screenshot of a webpage to a temporary file.
+
+        If the URL is a Reddit comment URL, sets the `context` parameter to `9`
+        before rendering.
+
+        :param str url: URL of webpage to render
+        :param int max_height: maximum height in px
+        :returns: path to PNG screenshot of webpage
+        :rtype: str
+        """
+        if is_comment_url(url):
+            url = self._set_comment_context(url)
+        return super().render(url, max_height)

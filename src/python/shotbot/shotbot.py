@@ -8,7 +8,7 @@ from threading import Event, Thread
 
 import dataset
 
-from .bots import QuoteCommenter, Renderer, Watcher
+from .bots import CommentContextRenderer, QuoteCommenter, Watcher
 from .utils import ensure_schema
 from .version import SHOTBOT_VERSION
 
@@ -22,9 +22,9 @@ class Shotbot():
     """
     A "bot" that takes screenshots of submitted links.
 
-    Actually orchestrates a swarm of `Watcher`, `Renderer` and `QuoteCommenter`
-    bots that handle the details of watching subreddits, rednering screenshots
-    and posting comments, respectively.
+    Actually orchestrates a swarm of `Watcher`, `CommentContextRenderer` and
+    `QuoteCommenter` bots that handle the details of watching subreddits,
+    rendering screenshots and posting comments, respectively.
     """
 
     def __init__(self,
@@ -147,10 +147,9 @@ class Shotbot():
         renderer_count = max(os.cpu_count() - 1, 1)
         log.debug("spawning %d renderers", renderer_count)
         renderers = [
-            Renderer(self._imgur_auth,
-                     self._reddit_args,
-                     self._db_uri,
-                     kill_switch, ) for _ in range(renderer_count)
+            CommentContextRenderer(self._imgur_auth, self._reddit_args,
+                                   self._db_uri, kill_switch)
+            for _ in range(renderer_count)
         ]
         swarm.extend(Thread(name='renderer-{}'.format(i),
                             target=bot.run) for i, bot in enumerate(renderers))

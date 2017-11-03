@@ -1,15 +1,14 @@
 """Comments on submissions."""
 import datetime
 import logging
-import re
 
 import dataset
 import praw
 from jinja2 import Environment, PackageLoader
 
 from ..exceptions import CommenterException
-from ..utils import (base36_decode, load_submission_for_dict, markdown_escape,
-                     markdown_quote)
+from ..utils import (base36_decode, comment_id_from_url, is_comment_url,
+                     load_submission_for_dict, markdown_escape, markdown_quote)
 
 __all__ = ('Commenter', )
 
@@ -78,8 +77,9 @@ class Commenter():
 
     def _process_submission(self, submissions, submission):
         commented_at = self.comment(submission)
-        submission['bot_commented_at'] = commented_at
-        submissions.update(submission, ['id'])
+        submissions.update(
+            {'id': submission['id'],
+             'bot_commented_at': commented_at}, ['id'])
 
     def _existing_comment(self, submission):
         for comment in submission.comments:
@@ -107,7 +107,7 @@ class Commenter():
         if existing_comment:
             log.warning("[%s] already commented: %s", submission['id'],
                         existing_comment.permalink)
-            return existing_comment.created
+            return datetime.datetime.utcfromtimestamp(existing_comment.created)
 
         # post comment to reddit
         try:
@@ -117,7 +117,7 @@ class Commenter():
         except CommenterException:
             log.exception("Failed to generate comment for submission %s",
                           submission['id'])
-            commented_at = 0
+            commented_at = datetime.datetime.utcfromtimestamp(0)
         return commented_at
 
     def _post_comment(self, submission, screenshot):
@@ -130,7 +130,7 @@ class Commenter():
                   base36_decode(submission.id), comment_body)
         reply = submission.reply(comment_body)
         log.debug("Posted reply: %r", reply)
-        return reply.created
+        return datetime.datetime.utcfromtimestamp(reply.created_utc)
 
     def _generate_comment(self, submission, screenshot):
         template = self._jinja.get_template('comment.md.j2')
@@ -141,29 +141,18 @@ class Commenter():
 
 class QuoteCommenter(Commenter):
     """If a submission links to a Reddit comment, quotes the linked comment."""
-    COMMENT_URL_RE = re.compile(
-        r'http(s)?://([^.]+\.)?reddit\.com/r/[^/]+/comments/[0-9a-z]+/[^/]+/(?P<id>[0-9a-z]+)(/(\?.*)?)?')  # noqa
 
     REMOVED_COMMENT = '[removed]'
     DELETED_COMMENT = '[deleted]'
 
     @classmethod
-    def _is_comment_url(cls, url):
-        return bool(cls.COMMENT_URL_RE.match(url))
-
-    @classmethod
-    def _comment_id_from_url(cls, url):
-        return cls.COMMENT_URL_RE.match(url).group('id')
-
-    @classmethod
     def _is_comment_submission(cls, submission):
         return (not submission.is_self and
                 submission.domain == 'reddit.com' and
-                cls._is_comment_url(submission.url))
+                is_comment_url(submission.url))
 
     def _get_linked_comment(self, submission):
-        return self._reddit.comment(
-            id=self._comment_id_from_url(submission.url))
+        return self._reddit.comment(id=comment_id_from_url(submission.url))
 
     def _generate_comment(self, submission, screenshot):
         if not self._is_comment_submission(submission):

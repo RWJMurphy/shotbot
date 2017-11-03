@@ -34,7 +34,7 @@ class Watcher():
         `filter_fn(submission)` returns False
         """
         self._reddit = praw.Reddit(**reddit_args)
-        self._reddit.read_only = True
+        # self._reddit.read_only = True
         self._db_uri = db_uri
         self.subreddit = self._reddit.subreddit(subreddit)
         self._kill = kill_switch
@@ -51,7 +51,7 @@ class Watcher():
         log.debug("%r running", self)
         while True:
             self._process_submissions()
-            self._kill.wait(1)
+            self._kill.wait(60)
             if self._kill.is_set():
                 return
 
@@ -59,7 +59,8 @@ class Watcher():
         db = dataset.connect(self._db_uri)
         try:
             seen = db.create_table('submissions', primary_id='id')
-            for submission in self.subreddit.stream.submissions(pause_after=5):
+            submissions = self.subreddit.stream.submissions(pause_after=5)
+            for submission in submissions:
                 if self._kill.is_set() or submission is None:
                     return
                 if self.filter and not self.filter(submission):

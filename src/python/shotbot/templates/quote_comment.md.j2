@@ -1,4 +1,4 @@
-On {{comment.created_utc|parse_utc_epoch}}, {{comment.author|markdown_escape}} wrote [{{comment.score}} points{% if comment.gilded %}, gilded x{{comment.gilded}}{% endif %}]:
+At {{comment.created_utc|parse_utc_epoch}} UTC, {{comment.author|markdown_escape}} wrote [{{comment.score}} points{% if comment.gilded %}, gilded x{{comment.gilded}}{% endif %}]:
 
 {{comment.body|markdown_quote}}
 

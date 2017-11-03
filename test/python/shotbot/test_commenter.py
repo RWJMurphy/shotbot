@@ -52,8 +52,7 @@ def test_kill_switch(isolated_commenter):
 def test_commenter_run(isolated_commenter, submissions_in_db):
     with patch.object(isolated_commenter, '_kill') as mock_kill:
         mock_kill.side_effect = [False, True, True]
-        with patch.object(isolated_commenter,
-                          '_process_submission'):
+        with patch.object(isolated_commenter, '_process_submission'):
             isolated_commenter.run()
 
 
@@ -78,7 +77,8 @@ def test_process_submission(isolated_commenter, mocked_reddit, db,
     submission_obj = Mock(spec=praw.models.Submission)
     submission_obj.id = "abcdef"
     submission_obj.comments = []
-    submission_obj.reply.return_value.created = datetime.datetime.utcnow()
+    submission_obj.reply.return_value.created_utc = datetime.datetime.utcnow(
+    ).timestamp()
     mocked_reddit.submission.return_value = submission_obj
 
     comment_body = "this is a fake comment"

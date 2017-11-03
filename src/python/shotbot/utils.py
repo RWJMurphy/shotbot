@@ -74,9 +74,14 @@ BLACKLISTED_FIELDS = set([
     # Complex values
     'media',
     'media_embed',
+    'preview',
+    'report_reasons',
     'secure_media',
     'secure_media_embed',
     # Don't care
+    'approved',
+    'approved_by',
+    'approved_at_utc',
     'author_flair_css_class',
     'banned_at_utc',
     'brand_safe',
@@ -98,9 +103,13 @@ BLACKLISTED_FIELDS = set([
     'removal_reason',
     'saved',
     'spoiler',
+    'subreddit_id',
     'subreddit_name_prefixed',
     'subreddit_type',
     'suggested_sort',
+    'thumbnail',
+    'thumbnail_width',
+    'thumbnail_height',
     'user_reports',
     'visited',
     'whitelist_status',
@@ -197,13 +206,10 @@ def markdown_quote(text, quote='> '):
     :returns: text with markdown quotes
     :rtype: str
     """
-    return ''.join(
-        item
-        for pair in zip(
-            itertools.cycle([quote]),
-            text.splitlines(True))
-        for item in pair
-    )
+    return ''.join(item
+                   for pair in zip(
+                       itertools.cycle([quote]), text.splitlines(True))
+                   for item in pair)
 
 
 MARKDOWN_ESCAPE_CHARS = re.compile(r'([\\`*_{}\[\]()#+.!-])')
@@ -218,3 +224,27 @@ def markdown_escape(text):
     :rtype: str
     """
     return MARKDOWN_ESCAPE_CHARS.sub(r'\\\1', str(text))
+
+
+COMMENT_URL_RE = re.compile(
+    r'http(s)?://([^.]+\.)?reddit\.com'
+    r'/r/[^/]+/comments/[0-9a-z]+/[^/]+/(?P<id>[0-9a-z]+)(/(\?.*)?)?'
+)  # noqa
+
+
+def is_comment_url(url):
+    """
+    :param str url:
+    :returns: True if the given URL is a Reddit comment URL, False otherwise
+    :rtype: bool
+    """
+    return bool(COMMENT_URL_RE.match(url))
+
+
+def comment_id_from_url(url):
+    """
+    :param str url: a Reddit comment URL
+    :returns: the comment ID from the URL
+    :rtype: str
+    """
+    return COMMENT_URL_RE.match(url).group('id')
