@@ -3,6 +3,7 @@ import datetime
 import logging
 import os
 from tempfile import NamedTemporaryFile
+from threading import Lock
 
 import dataset
 import imgurpython
@@ -26,6 +27,7 @@ MAX_SCREENSHOT_HEIGHT = 4000
 
 class Renderer():
     """Renders screenshots of submitted webpages."""
+    _lock = Lock()
 
     def __init__(self, imgur_auth, reddit_args, db_uri, kill_switch):
         """
@@ -92,8 +94,9 @@ class Renderer():
             ublock_file.write(response.raw.read())
 
     def _install_ublock(self, driver):
-        if not os.path.exists(self.UBLOCK_XPI_PATH):
-            self._download_ublock()
+        with self._lock:
+            if not os.path.exists(self.UBLOCK_XPI_PATH):
+                self._download_ublock()
         log.debug("installing ublock origin")
         driver.install_addon(self.UBLOCK_XPI_PATH)
 
