@@ -1,4 +1,5 @@
 """The main entry point for using Shotbot."""
+import datetime
 import logging
 import os
 import random
@@ -82,25 +83,64 @@ class Shotbot():
                 raise ValueError("Missing Imgur auth param {!r}".format(key))
         return imgur_auth.copy()
 
+    def _spawn_watchers(self, kill_switch):
+        watchers = []
+        domains = None
+        for subreddit, options in self.subreddits.items():
+            filters = []
+            if 'domains' in options:
+                domains = set(options['domains'])
+
+                def _filter_domain(submission):
+                    if submission.domain in domains:
+                        return True
+                    log.debug("filtering submission: domain %r not in %r",
+                              submission.domain, domains)
+                    return False
+
+                filters.append(_filter_domain)
+            if 'newer_than' in options:
+
+                def _filter_newer_than(delta):
+                    def _filter(submission):
+                        oldest = datetime.datetime.utcnow() - delta
+                        then = datetime.datetime.utcfromtimestamp(
+                            submission.created_utc)
+                        if then >= oldest:
+                            return True
+                        log.debug("filtering submission: %s older than %r",
+                                  submission.created_utc, delta)
+                        return False
+
+                    return _filter
+
+                delta = datetime.timedelta(**options['newer_than'])
+                filters.append(_filter_newer_than(delta))
+
+            if filters:
+
+                def _all_filters(filters):
+                    def _all_filters(submission):
+                        return all(_filter(submission) for _filter in filters)
+
+                    return _all_filters
+
+                _filter_fn = _all_filters(filters)
+            else:
+                _filter_fn = None
+
+            watcher = Watcher(self._reddit_args, self._db_uri, subreddit,
+                              kill_switch, _filter_fn)
+            watchers.append(watcher)
+        return watchers
+
     def _spawn_swarm(self, kill_switch):
         swarm = []
         # create a watcher per subreddit
         if log.isEnabledFor(logging.DEBUG):
             log.debug("spawning observers for %s", ', '.join(self.subreddits))
 
-        watchers = []
-        domains = None
-        for subreddit, options in self.subreddits.items():
-            if 'domains' in options:
-                domains = set(options['domains'])
-
-                def _filter_fn(submission):
-                    return submission.domain in domains
-            else:
-                _filter_fn = None
-            watcher = Watcher(self._reddit_args, self._db_uri, subreddit,
-                              kill_switch, _filter_fn)
-            watchers.append(watcher)
+        watchers = self._spawn_watchers(kill_switch)
         swarm.extend(Thread(name='watch-{}'.format(bot.subreddit),
                             target=bot.run) for bot in watchers)
         # create screenshot worker
@@ -116,8 +156,8 @@ class Shotbot():
                             target=bot.run) for i, bot in enumerate(renderers))
         # create a commenter
         log.debug("spawning commenter")
-        commenter = QuoteCommenter(
-            self._reddit_args, self._db_uri, kill_switch, self.dry_run)
+        commenter = QuoteCommenter(self._reddit_args, self._db_uri,
+                                   kill_switch, self.dry_run)
         swarm.append(Thread(name='commenter', target=commenter.run))
         return swarm
 
